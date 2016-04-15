@@ -1,0 +1,18 @@
+pose_speed: 0.5
+pose_torque_limit: 1.0
+poses:
+  zero:
+    neck_pan: 0.0
+    neck_tilt: 0.0
+    head_tilt: 0.0
+    head_roll: 0.0
+  up_left:
+    neck_pan: 0.5
+    neck_tilt: -0.2
+    head_tilt: 0.2
+    head_roll: 0.0
+  down_right:
+    neck_pan: -0.5
+    neck_tilt: 0.2
+    head_tilt: -0.2
+    head_roll: 0.0

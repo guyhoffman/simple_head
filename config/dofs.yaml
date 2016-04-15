@@ -1,0 +1,53 @@
+dynamixels: ['Neck_Pan_Joint', 'Neck_Tilt_Joint', 'Head_Tilt_Joint', 'Head_Roll_Joint']
+
+neck_pan_controller:
+    controller:
+        package: dynamixel_controllers
+        module: joint_position_controller
+        type: JointPositionController
+    joint_name: Neck_Pan_Joint
+    joint_speed: 0.5
+    motor:
+        id: 0
+        init: 2048
+        min: 0
+        max: 4096
+
+neck_tilt_controller:
+    controller:
+        package: dynamixel_controllers
+        module: joint_position_controller
+        type: JointPositionController
+    joint_name: Neck_Tilt_Joint
+    joint_speed: 0.5
+    motor:
+        id: 1
+        init: 2048
+        min: 0
+        max: 4096
+        
+head_tilt_controller:
+    controller:
+        package: dynamixel_controllers
+        module: joint_position_controller
+        type: JointPositionController
+    joint_name: Head_Tilt_Joint
+    joint_speed: 0.5
+    motor:
+        id: 2
+        init: 2048
+        min: 0
+        max: 4096
+        
+head_roll_controller:
+    controller:
+        package: dynamixel_controllers
+        module: joint_position_controller
+        type: JointPositionController
+    joint_name: Head_Roll_Joint
+    joint_speed: 0.5
+    motor:
+        id: 3
+        init: 2048
+        min: 0
+        max: 4096
