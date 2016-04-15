@@ -1,5 +1,3 @@
-dynamixels: ['Neck_Pan_Joint', 'Neck_Tilt_Joint', 'Head_Tilt_Joint', 'Head_Roll_Joint']
-
 neck_pan_controller:
     controller:
         package: dynamixel_controllers
