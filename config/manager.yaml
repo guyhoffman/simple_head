@@ -1,8 +1,8 @@
 namespace: dxl_manager
 serial_ports:
     head_port:
-        port_name: "/dev/ttyUSB0"
-        baud_rate: 57142
+        port_name: "/dev/ttyACM0"
+        baud_rate: 57600
         min_motor_id: 0
         max_motor_id: 3
         update_rate: 50
