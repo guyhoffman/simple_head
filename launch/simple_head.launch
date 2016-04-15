@@ -5,16 +5,29 @@
         <rosparam file="$(find simple_head)/config/manager.yaml" command="load" />
     </node>
 
+    <rosparam file="$(find simple_head)/config/dof_controllers.yaml" command="load"/>
+
     <!-- Start Joint Position Controllers for each DoF -->
-    <rosparam file="$(find simple_head)/config/dofs.yaml" command="load"  />
     <node name="ctrl_spawner" pkg="dynamixel_controllers" type="controller_spawner.py"
           args="--manager=dxl_manager
-                --port head_port
+                --port=head_port
                  neck_pan_controller
                  neck_tilt_controller
                  head_tilt_controller
                  head_roll_controller"
           output="screen" />
+
+    <!-- Start Meta Controllers for the whole Head -->
+    <node name="meta_spawner" pkg="dynamixel_controllers" type="controller_spawner.py"
+          args="--manager=dxl_manager
+                --port=head_port
+                --type=meta
+                 head_controller
+                 neck_pan_controller
+                 neck_tilt_controller
+                 head_tilt_controller
+                 head_roll_controller"
+          output="screen"/>
 
     <!-- Start the Pose Goer -->
     <node name="poser" pkg="simple_head" type="pose_goer.py" output="screen">
