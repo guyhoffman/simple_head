@@ -1,9 +1,11 @@
 <launch>
 
+    <!-- Start the Dynamixel Controller -->
     <node name="dynamixel_manager" pkg="dynamixel_controllers" type="controller_manager.py" required="true" output="screen">
         <rosparam file="$(find simple_head)/config/manager.yaml" command="load" />
     </node>
 
+    <!-- Start Joint Position Controllers for each DoF -->
     <rosparam file="$(find simple_head)/config/dofs.yaml" command="load"  />
     <node name="ctrl_spawner" pkg="dynamixel_controllers" type="controller_spawner.py"
           args="--manager=dxl_manager
@@ -14,6 +16,7 @@
                  head_roll_controller"
           output="screen" />
 
+    <!-- Start the Pose Goer -->
     <node name="poser" pkg="simple_head" type="pose_goer.py" output="screen">
         <rosparam file="$(find simple_head)/config/poses.yaml" command="load" />
     </node>
