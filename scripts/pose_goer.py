@@ -5,13 +5,13 @@ import rospy
 from control_msgs.msg import FollowJointTrajectoryAction
 from control_msgs.msg import FollowJointTrajectoryGoal
 from dynamixel_controllers.srv import SetSpeed, SetTorqueLimit
-from std_msgs.msg import String, Float64
+from std_msgs.msg import String
 from trajectory_msgs.msg import JointTrajectoryPoint
 
 
 def set_config(dofs_, param_, type_, value_):
     """
-    Set a configuration parameter in a DoF controller
+    Set a configuration parameter in a set of DoF controllers
 
     :param dofs_: list of dofs to control
     :param param_: the parameter to set
@@ -45,7 +45,9 @@ def goto_pose(pose):
     :param pose: pose dictionary key in param server
     """
     if pose in poses:
-        ac.send_goal(poses[pose])
+        goal = poses[pose]
+        goal.trajectory.header.stamp = rospy.Time.now()
+        ac.send_goal(goal)
     else:
         rospy.logerr("No such pose: %s " % pose)
 
@@ -76,13 +78,14 @@ def load_poses():
     for name, pp in param_poses.iteritems():
         goal = FollowJointTrajectoryGoal()
         dofs_ = pp.keys()
-        goal.trajectory.joint_names = dofs_
+
         positions = JointTrajectoryPoint()
         positions.positions = pp.values()
         positions.time_from_start = rospy.Duration.from_sec(3.0)  # Should make parameter in Topic msg
+
+        goal.trajectory.joint_names = dofs_
         goal.trajectory.points.append(positions)
-        goal.trajectory.header.stamp = rospy.Time.now()
-        print goal
+
         poses_[name] = goal
 
     return poses_, dofs_
@@ -93,25 +96,19 @@ if __name__ == '__main__':
     # Initialize Node
     rospy.init_node("goer")
 
-    # Poses and DoFs from private params
+    # Poses and DoFs from param file
     poses, dofs = load_poses()
 
-    # Create Publisher for each DoF
-    pubs = {}
-    for d in dofs:
-        controller = '/' + d + '_controller/command'
-        pubs[d] = rospy.Publisher(controller, Float64)
-
+    # Connect to Action Server
     ac = actionlib.SimpleActionClient('/head_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
-    rospy.loginfo('Waiting for joint trajectory action')
     ac.wait_for_server()
-    rospy.loginfo('Found joint trajectory action!')
+    rospy.loginfo('Connected to joint trajectory action!')
 
     # Start by going slowly to zero
     set_config(dofs, 'speed', SetSpeed, 0.05)
     goto_pose('zero')
 
-    # Set Motor Speed and Torque Limit from param file
+    # Set (potentially higher) Motor Speed and Torque Limit from param file
     set_default_config(dofs, "speed", SetSpeed)
     set_default_config(dofs, "torque_limit", SetTorqueLimit)
 
