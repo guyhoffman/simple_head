@@ -5,8 +5,9 @@ import rospy
 from control_msgs.msg import FollowJointTrajectoryAction
 from control_msgs.msg import FollowJointTrajectoryGoal
 from dynamixel_controllers.srv import SetSpeed, SetTorqueLimit
-from std_msgs.msg import String
 from trajectory_msgs.msg import JointTrajectoryPoint
+
+from simple_head.msg import PoseCommand
 
 
 def set_config(dofs_, param_, type_, value_):
@@ -38,7 +39,7 @@ def set_default_config(dofs_, param_, type_):
     set_config(dofs_, param_, type_, param)
 
 
-def goto_pose(pose):
+def goto_pose(pose, duration):
     """
     Go to pose by publishing command to each controller topic
 
@@ -47,6 +48,7 @@ def goto_pose(pose):
     if pose in poses:
         goal = poses[pose]
         goal.trajectory.header.stamp = rospy.Time.now()
+        goal.trajectory.points[0].time_from_start = duration  # Assuming only one point per trajectory
         ac.send_goal(goal)
     else:
         rospy.logerr("No such pose: %s " % pose)
@@ -54,15 +56,15 @@ def goto_pose(pose):
 
 # Callback basically just extracts the data from
 # the message and goes to that pose
-def pose_request(msg_data):
+def pose_request(msg):
     """
     Callback for topic subscriber. Basically extracts the data from the
     msg and sends it to goto_pose()
-    :param msg_data: ROS message data
+    :param msg: ROS message data
     :return:
     """
-    print "Requested pose %s" % msg_data
-    goto_pose(msg_data.data)
+    print "Requested pose %s" % msg.pose
+    goto_pose(msg.pose, msg.duration)
 
 
 def load_poses():
@@ -81,7 +83,6 @@ def load_poses():
 
         positions = JointTrajectoryPoint()
         positions.positions = pp.values()
-        positions.time_from_start = rospy.Duration.from_sec(3.0)  # Should make parameter in Topic msg
 
         goal.trajectory.joint_names = dofs_
         goal.trajectory.points.append(positions)
@@ -106,12 +107,12 @@ if __name__ == '__main__':
 
     # Start by going slowly to zero
     set_config(dofs, 'speed', SetSpeed, 0.05)
-    goto_pose('zero')
+    goto_pose('zero', rospy.Duration.from_sec(5))
 
     # Set (potentially higher) Motor Speed and Torque Limit from param file
     set_default_config(dofs, "speed", SetSpeed)
     set_default_config(dofs, "torque_limit", SetTorqueLimit)
 
     # Subscribe to the "goto_pose" topic and wait for String msgs
-    rospy.Subscriber("goto_pose", String, pose_request)
+    rospy.Subscriber("goto_pose", PoseCommand, pose_request)
     rospy.spin()

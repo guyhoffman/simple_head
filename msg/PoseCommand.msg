@@ -1,0 +1,2 @@
+duration duration
+string pose
