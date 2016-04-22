@@ -9,10 +9,10 @@ from trajectory_msgs.msg import JointTrajectoryPoint
 
 from simple_head.msg import PoseCommand
 
-CONFIG_SRV_TYPES = {"speed": SetSpeed, "torque_limit": SetTorqueLimit}
-
 
 class PoseGoer:
+    CONFIG_SRV_TYPES = {"speed": SetSpeed, "torque_limit": SetTorqueLimit}
+
     def __init__(self):
 
         # Initialize Node
@@ -21,7 +21,6 @@ class PoseGoer:
         # Poses and DoFs from param file
         self.poses = {}
         self.dofs = []
-
         self.load_poses()
 
         # Connect to Action Server
@@ -67,16 +66,27 @@ class PoseGoer:
         service_names = ['/' + dof + '_controller/set_' + param for dof in self.dofs]
         for sn in service_names:
             rospy.wait_for_service(sn)
-            service = rospy.ServiceProxy(sn, CONFIG_SRV_TYPES[param])
+            service = rospy.ServiceProxy(sn, PoseGoer.CONFIG_SRV_TYPES[param])
             service.call(value)
 
     def set_default_configs(self):
         """
         Get values from the parameter server and set the configuration in the controller
         """
-        for param in CONFIG_SRV_TYPES.keys():
+        for param in PoseGoer.CONFIG_SRV_TYPES.keys():
             value = rospy.get_param("~pose_" + param)
             self.set_config(param, value)
+
+
+    def pose_request(self, msg):
+        """
+        Callback for topic subscriber. Basically extracts the data from the
+        msg and sends it to goto_pose()
+        :param msg: ROS message data
+        :return:
+        """
+        print "Requested pose %s" % msg.pose
+        self.goto_pose(msg.pose, msg.duration)
 
     def goto_pose(self, pose, duration):
         """
@@ -93,17 +103,6 @@ class PoseGoer:
         else:
             rospy.logerr("No such pose: %s " % pose)
 
-    # Subscriber callback basically just extracts the data from
-    # the message and goes to that pose
-    def pose_request(self, msg):
-        """
-        Callback for topic subscriber. Basically extracts the data from the
-        msg and sends it to goto_pose()
-        :param msg: ROS message data
-        :return:
-        """
-        print "Requested pose %s" % msg.pose
-        self.goto_pose(msg.pose, msg.duration)
 
 if __name__ == '__main__':
     try:
