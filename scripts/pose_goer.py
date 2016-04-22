@@ -9,110 +9,105 @@ from trajectory_msgs.msg import JointTrajectoryPoint
 
 from simple_head.msg import PoseCommand
 
-
-def set_config(dofs_, param_, type_, value_):
-    """
-    Set a configuration parameter in a set of DoF controllers
-
-    :param dofs_: list of dofs to control
-    :param param_: the parameter to set
-    :param type_: ROS service type (i.e. SetSpeed)
-    :param value_: value to set the parameter to
-    """
-    service_names = ['/' + dof + '_controller/set_' + param_ for dof in dofs_]
-    for sn in service_names:
-        rospy.wait_for_service(sn)
-    services = [rospy.ServiceProxy(sn, type_) for sn in service_names]
-    for s in services:
-        s.call(value_)
+CONFIG_SRV_TYPES = {"speed": SetSpeed, "torque_limit": SetTorqueLimit}
 
 
-def set_default_config(dofs_, param_, type_):
-    """
-    Get a value from the parameter server and set the configuration in the controller
+class PoseGoer:
+    def __init__(self):
 
-    :param dofs_: list of dofs to config
-    :param param_: name of config parameter to set
-    :param type_: ROS service type (i.e. SetSpeed)
-    """
-    param = rospy.get_param("~pose_" + param_)
-    set_config(dofs_, param_, type_, param)
+        # Initialize Node
+        rospy.init_node("goer")
 
+        # Poses and DoFs from param file
+        self.poses = {}
+        self.dofs = []
 
-def goto_pose(pose, duration):
-    """
-    Go to pose by publishing command to each controller topic
+        self.load_poses()
 
-    :param pose: pose dictionary key in param server
-    """
-    if pose in poses:
-        goal = poses[pose]
-        goal.trajectory.header.stamp = rospy.Time.now()
-        goal.trajectory.points[0].time_from_start = duration  # Assuming only one point per trajectory
-        ac.send_goal(goal)
-    else:
-        rospy.logerr("No such pose: %s " % pose)
+        # Connect to Action Server
+        self.ac = actionlib.SimpleActionClient('/head_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
+        self.ac.wait_for_server()
+        rospy.loginfo('Connected to joint trajectory action!')
 
+        # Start by going slowly to zero
+        self.set_config('speed', 0.05)
+        self.goto_pose('zero', rospy.Duration.from_sec(5))
 
-# Callback basically just extracts the data from
-# the message and goes to that pose
-def pose_request(msg):
-    """
-    Callback for topic subscriber. Basically extracts the data from the
-    msg and sends it to goto_pose()
-    :param msg: ROS message data
-    :return:
-    """
-    print "Requested pose %s" % msg.pose
-    goto_pose(msg.pose, msg.duration)
+        # Set (potentially higher) Motor Speed and Torque Limit from param file
+        self.set_default_configs()
 
+        # Subscribe to the "goto_pose" topic and wait for String msgs
+        rospy.Subscriber("goto_pose", PoseCommand, self.pose_request)
 
-def load_poses():
-    """
-    Converts each pose from the YAML file into a goal
+    def load_poses(self):
+        """
+        Converts each pose from the YAML file into a goal and creates members poses and dofs:
+        poses is a dictionary mapping "name"->goal, dofs is the list of joints
+        """
+        param_poses = rospy.get_param("~poses")
+        for name, pp in param_poses.iteritems():
+            goal = FollowJointTrajectoryGoal()
+            self.dofs = pp.keys()
 
-    :return: (poses, dofs): poses is a dictionary mapping "name"->goal, dofs is the list of joints
-    """
-    param_poses = rospy.get_param("~poses")
-    print param_poses
-    poses_ = {}
-    dofs_ = []
-    for name, pp in param_poses.iteritems():
-        goal = FollowJointTrajectoryGoal()
-        dofs_ = pp.keys()
+            positions = JointTrajectoryPoint()
+            positions.positions = pp.values()
 
-        positions = JointTrajectoryPoint()
-        positions.positions = pp.values()
+            goal.trajectory.joint_names = self.dofs
+            goal.trajectory.points.append(positions)
 
-        goal.trajectory.joint_names = dofs_
-        goal.trajectory.points.append(positions)
+            self.poses[name] = goal
 
-        poses_[name] = goal
+    def set_config(self, param, value):
+        """
+        Set a configuration parameter in a set of DoF controllers
 
-    return poses_, dofs_
+        :param param: the parameter to set
+        :param value: value to set the parameter to
+        """
+        service_names = ['/' + dof + '_controller/set_' + param for dof in self.dofs]
+        for sn in service_names:
+            rospy.wait_for_service(sn)
+            service = rospy.ServiceProxy(sn, CONFIG_SRV_TYPES[param])
+            service.call(value)
 
+    def set_default_configs(self):
+        """
+        Get values from the parameter server and set the configuration in the controller
+        """
+        for param in CONFIG_SRV_TYPES.keys():
+            value = rospy.get_param("~pose_" + param)
+            self.set_config(param, value)
+
+    def goto_pose(self, pose, duration):
+        """
+        Go to pose by publishing command to each controller topic
+
+        :param pose: pose dictionary key in param server
+        :param duration: duration for trajectory
+        """
+        if pose in self.poses:
+            goal = self.poses[pose]
+            goal.trajectory.header.stamp = rospy.Time.now()
+            goal.trajectory.points[0].time_from_start = duration  # Assuming only one point per trajectory
+            self.ac.send_goal(goal)
+        else:
+            rospy.logerr("No such pose: %s " % pose)
+
+    # Subscriber callback basically just extracts the data from
+    # the message and goes to that pose
+    def pose_request(self, msg):
+        """
+        Callback for topic subscriber. Basically extracts the data from the
+        msg and sends it to goto_pose()
+        :param msg: ROS message data
+        :return:
+        """
+        print "Requested pose %s" % msg.pose
+        self.goto_pose(msg.pose, msg.duration)
 
 if __name__ == '__main__':
-
-    # Initialize Node
-    rospy.init_node("goer")
-
-    # Poses and DoFs from param file
-    poses, dofs = load_poses()
-
-    # Connect to Action Server
-    ac = actionlib.SimpleActionClient('/head_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
-    ac.wait_for_server()
-    rospy.loginfo('Connected to joint trajectory action!')
-
-    # Start by going slowly to zero
-    set_config(dofs, 'speed', SetSpeed, 0.05)
-    goto_pose('zero', rospy.Duration.from_sec(5))
-
-    # Set (potentially higher) Motor Speed and Torque Limit from param file
-    set_default_config(dofs, "speed", SetSpeed)
-    set_default_config(dofs, "torque_limit", SetTorqueLimit)
-
-    # Subscribe to the "goto_pose" topic and wait for String msgs
-    rospy.Subscriber("goto_pose", PoseCommand, pose_request)
-    rospy.spin()
+    try:
+        goer = PoseGoer()
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        rospy.loginfo("Bah-bye...")
