@@ -27,4 +27,5 @@ Just add poses in the [`poses.yaml`](config/poses.yaml) config file. Restart the
 
 ### Obvious next steps
 - ~~Use `SYNC WRITE` in joint_trajectory~~
+- ~~Add duration for pose going~~
 - Add trajectory importer for blender importer
