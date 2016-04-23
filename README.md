@@ -26,4 +26,5 @@ Just add poses in the [`poses.yaml`](config/poses.yaml) config file. Restart the
 - Make sure that you have the right USB port (usualy `/dev/ttyUSB0` but might be different on your machine).
 
 ### Obvious next steps
-- Use `SYNC WRITE` in joint_trajectory 
+- ~~Use `SYNC WRITE` in joint_trajectory~~
+- Add trajectory importer for blender importer
